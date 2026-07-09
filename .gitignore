@@ -14,8 +14,6 @@ dist/
 build/
 
 # Environment variables
-.env
-.env.*
 !.env.example
 !.env.local.example
 
@@ -40,7 +38,6 @@ coverage/
 next-env.d.ts
 
 # Editor / IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -52,3 +49,4 @@ Thumbs.db
 # Misc
 .turbo/
 .cache/
+config.bat
