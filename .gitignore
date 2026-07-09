@@ -14,8 +14,6 @@ dist/
 build/
 
 # Environment variables
-.env
-.env.*
 !.env.example
 !.env.local.example
 
@@ -52,3 +50,4 @@ Thumbs.db
 # Misc
 .turbo/
 .cache/
+config.bat
