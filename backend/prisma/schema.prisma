@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Role = who you are in the system (portal access). Unrelated to what you pay for.
+enum Role {
+  USER
+  BROKER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscription         Subscription?
+  entitlementOverrides UserEntitlementOverride[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// Plans & Entitlements — feature access is driven by entitlements
+// attached to a Plan, never a hardcoded per-tier check.
+// ─────────────────────────────────────────────────────────────
+
+model Plan {
+  id                String @id @default(uuid())
+  key               String @unique // "novice" | "tier2" | "tier3" — immutable, internal
+  displayName       String         // editable later without touching this key
+  priceMonthlyCents Int?           // null for the free tier
+  sortOrder         Int    @default(0)
+
+  entitlements  PlanEntitlement[]
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Entitlement {
+  id          String  @id @default(uuid())
+  key         String  @unique // "content.pathway.full", "broker.priority_response", ...
+  description String?
+
+  plans     PlanEntitlement[]
+  overrides UserEntitlementOverride[]
+}
+
+model PlanEntitlement {
+  planId        String
+  entitlementId String
+  plan          Plan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  entitlement   Entitlement @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+
+  @@id([planId, entitlementId])
+}
+
+// A Super Admin can comp an individual user an entitlement without touching billing.
+model UserEntitlementOverride {
+  id            String   @id @default(uuid())
+  userId        String
+  entitlementId String
+  grantedBy     String   // Super Admin userId
+  createdAt     DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entitlement Entitlement @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entitlementId])
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  planId               String
+  stripeCustomerId     String
+  stripeSubscriptionId String   @unique
+  status               String   // active | past_due | canceled
+  currentPeriodEnd     DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+}
